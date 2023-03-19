@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -84,11 +85,7 @@ class _MyHomePageState extends State<MyHomePage> {
           alignment: Alignment.center,
           child: Image.asset('assets/buildsafe_logo.jpg'),
         ),
-        Container(
-          color: Colors.grey[200],
-          alignment: Alignment.center,
-          child: const Text('Page 2'),
-        ),
+        const CameraScanPage(),
         Container(
           color: Colors.grey[200],
           alignment: Alignment.center,
@@ -96,5 +93,63 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ][currentPageIndex],
     );
+  }
+}
+
+class CameraScanPage extends StatefulWidget {
+  const CameraScanPage({Key? key}) : super(key: key);
+  @override
+  State<CameraScanPage> createState() => _CameraScanPageState();
+}
+
+class _CameraScanPageState extends State<CameraScanPage> {
+  CameraController? _cameraController;
+  late CameraDescription cameraDescription;
+
+  @override
+  void initState() {
+    super.initState();
+    initCamera();
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    super.dispose();
+  }
+
+  Future initCamera() async {
+    // Get first available camera description
+    await availableCameras().then((value) => cameraDescription = value[0]);
+
+    // Initialize camera
+    _cameraController =
+        CameraController(cameraDescription, ResolutionPreset.high);
+    try {
+      await _cameraController!.initialize().then((_) {
+        if (!mounted) return;
+        setState(() {});
+      });
+    } on CameraException catch (e) {
+      debugPrint("camera error $e");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final deviceRatio = size.width / size.height;
+
+    return Scaffold(
+        body: Center(
+      child: (_cameraController?.value.isInitialized ?? false)
+          ? Transform.scale(
+              scale: _cameraController!.value.aspectRatio / deviceRatio,
+              child: AspectRatio(
+                aspectRatio: _cameraController!.value.aspectRatio,
+                child: CameraPreview(_cameraController!),
+              ))
+          : const Center(child: CircularProgressIndicator()),
+    ));
   }
 }
