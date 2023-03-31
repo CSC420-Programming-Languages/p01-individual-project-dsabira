@@ -1,5 +1,8 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:damage_detection_map/preview_page.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 void main() {
   runApp(const MyApp());
@@ -112,6 +115,48 @@ class _CameraScanPageState extends State<CameraScanPage> {
     initCamera();
   }
 
+  Future takePicture() async {
+    if (_cameraController == null) {
+      return null;
+    }
+    if (!_cameraController!.value.isInitialized) {
+      return null;
+    }
+    if (_cameraController!.value.isTakingPicture) {
+      return null;
+    }
+    try {
+      await _cameraController!.setFlashMode(FlashMode.off);
+      XFile picture = await _cameraController!.takePicture();
+      // ignore: use_build_context_synchronously
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => PreviewPage(
+                    picture: picture,
+                  )));
+    } on CameraException catch (e) {
+      debugPrint('Error occured while taking picture: $e');
+      return null;
+    }
+  }
+
+  Future pickImage() async {
+    try {
+      XFile? image = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (image == null) return;
+      // ignore: use_build_context_synchronously
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => PreviewPage(
+                    picture: image,
+                  )));
+    } on PlatformException catch (e) {
+      debugPrint('Failed to pick image: $e');
+    }
+  }
+
   @override
   void dispose() {
     _cameraController?.dispose();
@@ -138,18 +183,38 @@ class _CameraScanPageState extends State<CameraScanPage> {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final deviceRatio = size.width / size.height;
+    final padding = MediaQuery.of(context).padding;
+    final deviceRatio = size.width / (size.height + padding.bottom);
 
     return Scaffold(
         body: Center(
-      child: (_cameraController?.value.isInitialized ?? false)
-          ? Transform.scale(
-              scale: _cameraController!.value.aspectRatio / deviceRatio,
-              child: AspectRatio(
-                aspectRatio: _cameraController!.value.aspectRatio,
-                child: CameraPreview(_cameraController!),
-              ))
-          : const Center(child: CircularProgressIndicator()),
+      child: Column(children: [
+        (_cameraController?.value.isInitialized ?? false)
+            ? Transform.scale(
+                scale: _cameraController!.value.aspectRatio / deviceRatio,
+                child: AspectRatio(
+                  aspectRatio: _cameraController!.value.aspectRatio,
+                  child: CameraPreview(_cameraController!),
+                ))
+            : const Center(child: CircularProgressIndicator()),
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: IconButton(
+            onPressed: takePicture,
+            iconSize: 50,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            icon: const Icon(Icons.circle, color: Colors.black),
+          ),
+        ),
+        MaterialButton(
+            color: Colors.blue,
+            // ignore: sort_child_properties_last
+            child: const Text("Choose from Gallery",
+                style: TextStyle(
+                    color: Colors.white70, fontWeight: FontWeight.bold)),
+            onPressed: pickImage)
+      ]),
     ));
   }
 }
